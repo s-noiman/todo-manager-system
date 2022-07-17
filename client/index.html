@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>TODO</h1>
+
+        <div class="input_wrapper">
+            <input type="text" class="addInput" placeholder="Title...">
+            <span class="button addBtn">Add</span>
+        </div>
+
+        <ul class="list_wrapper">
+        </ul>
+        <div class="button refreshBtn mt-50">Refresh</div>
+    </div>
+</body>
+
+
+<script defer>
+
+    const addBtn = document.querySelector('.addBtn');
+    const refreshBtn = document.querySelector('.refreshBtn');
+    const addInput = document.querySelector('.addInput');
+    const listWrapper = document.querySelector('.list_wrapper');
+
+    ///Utils
+    const API = 'https://localhost:44336/api/TodoTasks'
+    const headers = new Headers();
+
+    headers.append('Authorization', '');
+    headers.append('Access-Control-Allow-Origin', '*');
+    headers.append('Content-Type', 'application/json');
+
+    //generate uuid
+    const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+    // data - will contain the todos on the client side app
+    // todo object structure -   { id: uid(), value: "TAKE OUT THE TRASH", complete: false }
+    let todos = [];
+
+    //togglecomplete class
+    const togglecomplete = (e) => {
+        const todo = e.target;
+        todo.classList.toggle("complete");
+    }
+
+    //add all todos there events
+    const addGlobalEventListeners = () => {
+        listWrapper.querySelectorAll('li').forEach(listItem => listItem.addEventListener('click', updateTodo));
+        listWrapper.querySelectorAll('li .close').forEach(closeBtn => closeBtn.addEventListener('click', deleteTodo));
+    }
+
+    //render todos from array in the ul
+    const renderTodos = () => {
+        const todosList = todos.map(todo => `<li id="${todo.id}"  ${todo.complete ? "class='complete'" : ""}>${todo.value}<span class="close">×</span></li>`).join("");
+        listWrapper.innerHTML = todosList;
+        addGlobalEventListeners();
+    }
+
+    //create function
+    const createTodo = async (e) => {
+        //get current todo value
+        const value = addInput.value;
+        if (!value) return;
+        const newTodo = { id: uid(), value, complete: false };
+        alert(newTodo.id + " : " + newTodo.value + " : " + newTodo.complete);
+        //send post request to server
+        const res = await fetch(API + '/createTodo', {
+            headers,
+            method: "POST",
+            body: JSON.stringify(newTodo)
+        });
+        //works only if you return status OF 201 Created
+        if (res.status === 201) {
+            const data = await res.json();
+            if (data !== null) {
+                //empty input value  if succeed and add event listeners
+                addInput.value = "";
+                //add to the UI with relevant events
+                todos.push(newTodo);
+                renderTodos();
+            }
+        }
+    }
+
+    //delete function
+    const deleteTodo = async (e) => {
+        //prevent update event because it set to deleteBtn parent
+        e.stopPropagation();
+        //get current todo
+        const todoElement = e.target.parentElement;
+        const currTodo = { id: todoElement.getAttribute('id'), value: todoElement.innerText, complete: todoElement.classList.contains('complete') }
+        //send delete request to server
+        const res = await fetch(API + '/deleteTodo/' + currTodo.id, {
+            headers,
+            method: "DELETE",
+
+        });
+        //works only if you return status OF DELETE 202
+        if (res.status === 202) {
+            //empty input value  if succeed and add event listeners
+            addInput.value = "";
+            //if succeed delete from todos array 
+            todos = todos.filter(todo => todo.id !== currTodo.id);
+            // render updated todos
+            renderTodos();
+        }
+    }
+
+    //update function toggle complete on current todo on API 
+    const updateTodo = async (e) => {
+        //toggle complete status
+        togglecomplete(e);
+        //get current todo
+        const todoElement = e.target.parentElement;
+        const currTodo = { id: todoElement.getAttribute('id'), value: todoElement.innerText, complete: todoElement.classList.contains('complete') }
+
+        //send update request to server
+        const res = await fetch(API + '/updateTodo', {
+            headers,
+            method: "PUT",
+            body: JSON.stringify(currTodo)
+        });
+
+        const data = await res.json();
+        if (data !== null) {
+            //empty input value  if succeed and add event listeners
+            addInput.value = "";
+            //if succeed delete from todos array 
+            todos = todos.filter(todo => todo.id !== currTodo.getAttribute("id"));
+            todos.push(currTodo);
+            renderTodos();
+        }
+    }
+
+    //get all Todos function
+    const getTodos = async (e) => {
+        //send get request to server
+        const res = await fetch(API + '/getAllTodos', {
+            headers,
+            method: "GET",
+        });
+        const data = await res.json();
+        if (data !== null && Array.isArray(data)) {
+            todos = data;
+            renderTodos();
+        }
+    }
+
+    addBtn.addEventListener('click', createTodo);
+    refreshBtn.addEventListener('click', getTodos);
+    document.addEventListener("DOMContentLoaded", renderTodos);
+
+</script>
+
+</html>
