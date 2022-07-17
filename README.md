@@ -1,2 +1,2 @@
 # Todo manager system
-Build a task management app using .NET 6 Web Api 2
+Build a task management app using ASP.NET Web Api 2
